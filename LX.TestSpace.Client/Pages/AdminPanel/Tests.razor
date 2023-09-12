@@ -1,0 +1,107 @@
+﻿@page "/admin-panel/tests"
+@using LX.TestSpace.Client.Components;
+@using LX.TestSpace.Client.HttpRepository;
+@using LX.TestSpace.Client.Entities;
+@using LX.TestSpace.Client.HttpRepository.Interfaces;
+@inject AuthenticationStateProvider authProvider;
+@inject IDialogService DialogService;
+@inject ISnackbar Snackbar;
+@attribute [Authorize(Roles = "Admin")]
+
+@if (TestList == null)
+{
+    <MudContainer Class="d-flex justify-center">
+        <MudGrid Class="my-3 container" Spacing="4">
+            @for (int i = 0; i < 3; i++)
+            {
+                <MudItem xs="12" md="4">
+                    <TestItemSkeleton />
+                </MudItem>
+            }
+        </MudGrid>
+    </MudContainer>
+}
+else
+{
+    <div style="margin: auto 0; text-align: center;">
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@AddNewTest">Add new test</MudButton>
+    </div>
+    <div style="
+        display: flex;
+        align-items: center;
+        align-content: center;
+        justify-content: center;
+        overflow: auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        flex: 1 1 300px">
+        <MudContainer Class="d-flex flex-wrap">
+            @foreach (var item in TestList)
+            {
+                <div class="m-3">
+                    <TestItem Test="@item" IsAdmin=IsAdmin TestDelete="@(() => TestDelete(item.Id))" />
+                </div>
+            }
+        </MudContainer>
+</div>
+}
+
+
+
+@code {
+    public List<Test> TestList { get; set; }
+    public Test EmptyTest = new Test
+        {
+            Name = "Default Test Name",
+            Description = "Default Test Description",
+            Duration = new TimeSpan(0, 0, 0),
+            Questions = new List<Question>(),
+            UserNameCreate = ""
+    };
+
+    [Inject]
+    public ITestsHttpClient TestHttpClient { get; set; }
+    private bool IsAdmin { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await authProvider.GetAuthenticationStateAsync();
+        IsAdmin = state.User.IsInRole("Admin");
+        TestList = await TestHttpClient.GetAll();
+    }
+
+    private async void AddNewTest()
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("Test", EmptyTest);
+        var dialog = await DialogService.ShowAsync<ModalTestCreate>("Edit New Test", parameters);
+        if(!dialog.Result.IsCanceled)
+        {
+            var result = (await dialog.Result).Data as Test;
+            if (result != null)
+            {
+                result = await TestHttpClient.Create(result);
+                TestList.Add(result);
+                StateHasChanged();
+                Snackbar.Add($"Test succesfully added");
+            }
+        }
+    }
+
+    private async void TestDelete(int id)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Warning",
+            "It will be impossible to restore a removed test",
+            yesText: "Delete", cancelText: "Cancel");
+        StateHasChanged();
+        if( result == true)
+        {
+            await TestHttpClient.Delete(id);
+            TestList = await TestHttpClient.GetAll();
+            StateHasChanged();
+            Snackbar.Add($"Test succesfully deleted");
+        }
+    }
+}

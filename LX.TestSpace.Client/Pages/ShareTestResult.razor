@@ -1,0 +1,30 @@
+﻿@page "/shared/{*url}"
+@using LX.TestSpace.Client.Components
+@using LX.TestSpace.Client.HttpRepository.Interfaces;
+@inject ITestResultsHttpClient TestResultsHttp
+@inject IUserHttpClient userHttpClient
+@attribute [AllowAnonymous]
+
+<MudContainer Class="align-content-center">
+    @if (TestResult?.User == null)
+    {
+        <MudSkeleton />
+        <MudSkeleton Animation="Animation.False" />
+        <MudSkeleton Animation="Animation.Wave" />
+    }
+    else
+    {
+        <TestUserResult TestResult="@TestResult"/>
+    }
+</MudContainer>
+@code {
+    [Parameter]
+    public string Url { get; set; }
+
+    TestResult? TestResult { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        TestResult = await TestResultsHttp.GetShareTestResult(Url);
+    }
+}

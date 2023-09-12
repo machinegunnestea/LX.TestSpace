@@ -1,0 +1,101 @@
+﻿@page "/detailed-test-result/{id:int}"
+@inject IJSRuntime JsRuntime
+@using LX.TestSpace.Client.HttpRepository.Interfaces;
+@using PSC.Blazor.Components.CodeSnippet
+@inject ITestResultsHttpClient TestResultsHttp
+@attribute [Authorize(Roles = "Admin")]
+
+@if (UserTestResult == null)
+{
+    <MudSkeleton />
+    <MudSkeleton Animation="Animation.False" />
+    <MudSkeleton Animation="Animation.Wave" />
+}
+else
+{
+
+    <MudContainer>
+        <MudCardActions>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="@(() => JsRuntime.InvokeAsync<object>("history.back"))">Back to results</MudButton>
+        </MudCardActions>
+        <div class="justify-content-center text-center">
+            <MudText Typo="Typo.h6" Class="mt-4">Test: @UserTestResult.TestSnapshot.Name</MudText>
+            <MudText Typo="Typo.h6">Test Description: @UserTestResult.TestSnapshot.Description</MudText>
+            <MudText Typo="Typo.h6">Test duration: @UserTestResult.TestSnapshot.Duration</MudText>
+            <MudText Typo="Typo.h6" Class="mt-4">User: @UserTestResult.User.Name @UserTestResult.User.Surname </MudText>
+            <MudText Typo="Typo.h6">User's score: @UserTestResult.TestScore</MudText>
+            <MudText Typo="Typo.h6">Time spent: @UserTestResult.TextExecutionTime()</MudText>
+        </div>
+        <MudText Typo="Typo.h6" Class="mt-5">Questions:</MudText>
+        @foreach (var question in UserTestResult.QuestionSnapshots)
+        {
+            <MudPaper Class="mb-4">
+                <MudText Typo="Typo.h6" Class="pl-2"><b>@question.Text</b></MudText>
+                @if (!string.IsNullOrEmpty(question.CodeSnippet))
+                {
+                    <CodeSnippet Language="Language.csharp" Style="@Style.VisualStudio">
+                        @question.CodeSnippet
+                    </CodeSnippet>
+                }
+                @if (!string.IsNullOrEmpty(question.ImagePath))
+                {
+                    <div class="ma-6 d-flex justify-center">
+                        <MudImage Src="@question.ImagePath" Alt="Picture went missing, we'll try to catch it" Style="height:auto" Width="250" Elevation="25" />
+                    </div>
+                    <MudDivider />
+                }
+                <MudText Typo="Typo.h6" Class="pl-10">Answers:</MudText>
+                @foreach (var answer in question.UserAnswersSnapshots)
+                {
+                    <div class="d-flex align-items-center pl-15 mb-3">
+                        @if (answer.IsSelected)
+                        {
+                            if (answer.IsCorrect ?? false)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Medium" />
+                                <MudText Class="text-success">@answer.Text</MudText>
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Medium" />
+                                <MudText Class="text-danger">@answer.Text</MudText>
+                            }
+                        }
+                        else
+                        {
+                            @if (answer.IsCorrect ?? false)
+                            {
+                                <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Color="Color.Success" Size="Size.Medium" />
+                            }
+                            <MudText>@answer.Text</MudText>
+                        }
+                    </div>
+                }
+                <MudText Typo="Typo.h6" Class="pl-10 mt-4"><b>Correct answers:</b></MudText>
+                @foreach (var answer in question.UserAnswersSnapshots)
+                {
+                    <div class="d-flex align-items-center pl-15 mb-3">
+                        @if (answer.IsCorrect == true)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Medium" />
+                            <MudText Class="text-success">@answer.Text</MudText>
+                        }
+                    </div>
+                }
+            </MudPaper>
+        }
+    </MudContainer>
+}
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    
+    private TestResult? UserTestResult { get; set; }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        UserTestResult = await TestResultsHttp.Get(Id);
+    }
+}

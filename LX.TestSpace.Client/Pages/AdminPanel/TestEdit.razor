@@ -1,0 +1,191 @@
+@page "/test-edit/{Id}"
+@using LX.TestSpace.Client.Components;
+@using LX.TestSpace.Client.HttpRepository;
+@using Microsoft.Extensions.Http;
+@using LX.TestSpace.Client.HttpRepository.Interfaces;
+@using LX.TestSpace.Client.Entities.Records
+@inject IDialogService DialogService
+@inject ITestsHttpClient TestHttpClient
+@inject IQuestionsHttpClient QuestionsHttpClient
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider authProvider
+@inject NavigationManager navManager
+@inject IJSRuntime jsRuntime
+@attribute [Authorize(Roles = "Admin")]
+
+<div class="test-information">
+    <div class="input">
+        <MudText>Test Information</MudText>
+        <MudTextField T="string" @bind-Value="@Test.Name" Counter="500" Immediate="true" Label="Test Name:" Variant="Variant.Text" />
+        <MudTextField T="string" @bind-Value="@Test.Description" Counter="1000" Immediate="true" Label="Description:" Variant="Variant.Text" />
+        <MudTextField T="TimeSpan" @bind-Value="@Test.Duration" Format="hh\:mm\:ss" Immediate="true" Label="Test Duration (hh\mm\ss):" Variant="Variant.Text" />
+    </div>
+    <div class="test-buttons mt-3 mb-12; display: flex">
+        <MudButton Color="Color.Success" OnClick="Save">Save</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="CreateQuestions">Create New Question</MudButton>
+        <MudCheckBox @bind-Checked="@Test.IsPublished" Color="Color.Primary">Published</MudCheckBox>
+    </div>
+</div>
+<div class="questions-edit">
+    <MudSimpleTable Style="overflow-x: auto;" Dense=true Bordered="true">
+        <thead>
+            <tr>
+                @foreach (var heading in @headings)
+                {
+                    <th>@heading</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @if (Test.Questions != null)
+            {
+                @foreach (var question in Test.Questions)
+                {
+                    <tr>
+                        <td><MudText>@question.Text</MudText></td>
+                        <td>
+                            @foreach (var answer in question.Answers)
+                            {
+                                <MudText>@answer.Text</MudText>
+                            }
+                        </td>
+                        <td>
+                            <MudIconButton OnClick="() => DeleteQuestion(question)" Icon="@Icons.Material.Filled.Delete" />
+                            <MudIconButton OnClick="() => OpenDialog(question)" Icon="@Icons.Material.Filled.Create" />
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </MudSimpleTable>
+</div>
+@if (unsavedChanges)
+{
+    <NavigationLock OnBeforeInternalNavigation="ReallyLeave" ConfirmExternalNavigation />
+}
+
+
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+    string[] headings = { "Question", "Answers", "Actions" };
+
+    private bool unsavedChanges;
+    public Test Test { get; set; } = new();
+
+    List<QuestionAndImage> questionsAndImages = new();
+
+    async Task ReallyLeave(LocationChangingContext context)
+    {
+        var confirmed = await jsRuntime.InvokeAsync<bool>("window.confirm", "You have unsaved changes. Are you sure you want to leave this page?");
+
+        if (!confirmed)
+        {
+            context.PreventNavigation();
+        }
+    }
+    public Question CreateEmptyQuestion()
+    {
+        return new Question()
+        {
+            Text = "Default Question",
+            TestId = int.Parse(Id ?? "0"),
+            Answers = new List<Answer>()
+            {
+                new Answer
+                {   
+                    Text = "Default Answer",
+                    IsCorrect = true
+                }
+            }
+        };
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Test = await TestHttpClient.GetById(int.Parse(Id?? "0"), true);
+    }
+
+    private async void OpenDialog(Question question)
+    {
+        unsavedChanges = true;
+        var parameters = new DialogParameters();
+        parameters.Add("Question", question);
+        var dialog = await DialogService.ShowAsync<ModalQuestionEdit>("Edit Question", parameters);
+        if (!dialog.Result.IsCanceled)
+        {
+            var result = (await dialog.Result).Data as QuestionAndImage;
+            if (result != null)
+            {
+                question.Id = result.Question.Id;
+                question.Text = result.Question.Text;
+                question.Answers = result.Question.Answers;
+                question.ImagePath = result.Question.ImagePath;
+                question.TestId = result.Question.TestId;
+                question.CodeSnippet = result.Question.CodeSnippet;
+
+                if (result.BufferedImage != null) 
+                    questionsAndImages.Add(result with { Question = question });
+
+                StateHasChanged();
+                Snackbar.Add($"Question succesfully edited");
+            }
+        }
+    }
+
+    async Task Save()
+    {
+        unsavedChanges = false;
+        try 
+        {
+            Snackbar.Add("Saving", Severity.Info);
+
+            foreach (var questionAndImage in questionsAndImages)
+            {
+                var testQuestion = questionAndImage.Question;
+                if (testQuestion.Id != 0)
+                {
+                    testQuestion.ImagePath = await QuestionsHttpClient.SetImage(questionAndImage);
+                }
+                else
+                {
+                    var createdQuestion = await QuestionsHttpClient.CreateAndReturn(testQuestion);
+
+                    testQuestion.Id = createdQuestion.Id;
+                    testQuestion.TestId = createdQuestion.TestId;
+                    testQuestion.ImagePath = await QuestionsHttpClient.SetImage(questionAndImage);
+                }
+            }
+            questionsAndImages.Clear();
+            await TestHttpClient.Update(Test);
+
+            Snackbar.Add("Saved", Severity.Success);
+        } catch
+        {
+            Snackbar.Add("Error", Severity.Error);
+        }
+    }
+
+    private void DeleteQuestion(Question question)
+    {
+        unsavedChanges = true;
+        var updatedQuestions = Test.Questions;
+        updatedQuestions.Remove(question);
+        Test.Questions = updatedQuestions;
+        StateHasChanged();
+        Snackbar.Add($"Question succesfully deleted");
+    }
+
+    private async void CreateQuestions()
+    {
+        unsavedChanges = true;
+        Question EmptyQuestion = CreateEmptyQuestion();
+        var updatedQuestions = Test.Questions.ToList();
+        updatedQuestions.Add(EmptyQuestion);
+        Test.Questions = updatedQuestions;
+        StateHasChanged();
+        Snackbar.Add($"Question created");
+    }
+} 

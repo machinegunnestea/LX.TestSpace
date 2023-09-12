@@ -1,0 +1,27 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LX.TestSpace.Client", "LX.TestSpace.Client\LX.TestSpace.Client.csproj", "{9C205F30-8B00-4D23-AA89-3891F21B8EEE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LX.TestSpace.Server", "LX.TestSpace.Server\LX.TestSpace.Server.csproj", "{C92D0E15-9752-4C47-844C-A941B7F06DFE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9C205F30-8B00-4D23-AA89-3891F21B8EEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C205F30-8B00-4D23-AA89-3891F21B8EEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C205F30-8B00-4D23-AA89-3891F21B8EEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C205F30-8B00-4D23-AA89-3891F21B8EEE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C92D0E15-9752-4C47-844C-A941B7F06DFE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C92D0E15-9752-4C47-844C-A941B7F06DFE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C92D0E15-9752-4C47-844C-A941B7F06DFE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C92D0E15-9752-4C47-844C-A941B7F06DFE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

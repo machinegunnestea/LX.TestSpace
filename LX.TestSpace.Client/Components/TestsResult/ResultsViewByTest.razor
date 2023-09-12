@@ -1,0 +1,70 @@
+﻿@using LX.TestSpace.Client.HttpRepository.Interfaces
+@using System.Globalization
+@using LX.TestSpace.Client.Components.TestsResult.Models
+@inject ITestResultsHttpClient TestResultsHttpClient
+@inject ITestsHttpClient TestsHttpClient
+
+<div class="my-3 col-12">
+    <MudTable T="TestSnapshotViewDataModel" ServerData="LoadSnapshots">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Duration</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Description">@context.Description</MudTd>
+            <MudTd DataLabel="Duration">@context.Duration.ToString(@"hh\:mm\:ss")</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => context.IsExpanded = !context.IsExpanded">Show results</MudButton>
+            </MudTd>
+        </RowTemplate>
+        <ChildRowContent>
+            @if (context.IsExpanded)
+            {
+                @if (context.IsExpanded)
+                {
+                    <MudTr>
+                        <td colspan="4">
+                            <MudCard>
+                                <MudCardContent Class="pa-0">
+                                    <BasePagebleTestResultsTable ServerDataHandler="tableData => ServerData(tableData, context.Id)" />
+                                </MudCardContent>
+                            </MudCard>
+                        </td>
+                    </MudTr>
+                }
+            }
+        </ChildRowContent>
+        <NoRecordsContent>
+            <MudText>No matching records found</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager/>
+        </PagerContent>
+    </MudTable>
+</div>
+
+@code {
+
+    private async Task<TableData<TestSnapshotViewDataModel>> LoadSnapshots(TableState arg)
+    {
+        var response = await TestsHttpClient.GetTestsFromSnapshots(arg.Page, arg.PageSize);
+        return new TableData<TestSnapshotViewDataModel>
+        {
+            Items = response.Data.Select(e => new TestSnapshotViewDataModel(e)).ToArray(),
+            TotalItems = response.TotalPageCount
+        };
+    }
+
+    private async Task<TableData<TestResult>> ServerData(TableState arg, int tesId)
+    {
+        var response = await TestResultsHttpClient.FilterByTestId(arg.Page, arg.PageSize, tesId);
+        return new TableData<TestResult>
+        {
+            Items = response.Data,
+            TotalItems = response.TotalPageCount
+        };
+    }
+}

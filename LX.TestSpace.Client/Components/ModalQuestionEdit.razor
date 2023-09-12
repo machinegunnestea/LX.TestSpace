@@ -1,0 +1,164 @@
+﻿@namespace LX.TestSpace.Client.Components
+@using PSC.Blazor.Components.CodeSnippet
+@using LX.TestSpace.Client.Entities.Records
+@inject ISnackbar Snackbar
+<MudDialog>
+    <DialogContent>
+        <MudTextField T="string" @bind-Value="@copiedQuestion.Text" Counter="1000" Immediate="true" Validation="@textValidationRulesForQuestion" Label="Question text" Variant="Variant.Text" />
+        <MudCheckBox @bind-Checked="@showCodeSnippet" Color="Color.Primary">Show Code Snippet</MudCheckBox>
+        @if (!string.IsNullOrEmpty(ImagePath))
+        {
+            <div class="ma-6 d-flex justify-center">
+                <MudImage Src="@ImagePath" Alt="Picture went missing, we'll try to catch it" Style="height:auto" Width="300" Elevation="25" />
+            </div>
+        }
+        @if (showCodeSnippet)
+        {
+            <textarea @bind="@copiedQuestion.CodeSnippet" style="width: 400px"></textarea>
+        }
+        <MudFileUpload T="IBrowserFile" OnFilesChanged="OnInputFileChangedAsync" Hidden="false" Class="flex-1" InputClass="absolute mud-width-full mud-height-full overflow-hidden z-20" InputStyle="opacity:0">
+            <ButtonTemplate>
+                <MudPaper Height="150px" Outlined="true" Class="@DragClass">
+                    <MudText Typo="Typo.h6"> Drag and drop files here or click</MudText>
+                </MudPaper>
+            </ButtonTemplate>
+        </MudFileUpload>   
+        <MudSimpleTable Style="overflow-x: auto;" Dense=true>
+            <thead>
+                <tr>
+                    @foreach (var heading in @headings)
+                    {
+                        <th>@heading</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach(var answer in copiedQuestion.Answers)
+                {
+                    {
+                        <tr>
+                            <td><MudTextField T="string" @bind-Value="@answer.Text" Counter="250" Immediate="true" Validation="@textValidationRulesForAnswers" Label="Answer text" Variant="Variant.Text" /></td>
+                            <td><MudCheckBox @bind-Checked="@answer.IsCorrect" Color="Color.Primary"></MudCheckBox></td>
+                            <td><MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="() => Delete(answer)" aria-label="delete"></MudIconButton></td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </MudSimpleTable>
+        <MudButton OnClick="AddAnswer">Add answer</MudButton>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    private static string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full z-10";
+    private string DragClass = DefaultDragClass;
+
+    [CascadingParameter]
+    MudDialogInstance ModalDialog { get; set; }
+
+    [Parameter]
+    public Question Question { get; set; }
+
+    string[] headings = {"Answer text", "Correct", "Delete" };
+
+    private Question copiedQuestion;
+
+    public bool showCodeSnippet = false;
+
+    private string? ImagePath;
+    private IBrowserFile? NewImage;
+
+    protected override void OnInitialized()
+    {
+        copiedQuestion = new Question
+        {
+            Id = Question.Id,
+            TestId = Question.TestId,
+            ImagePath = Question.ImagePath,
+            Text = Question.Text,
+            CodeSnippet = Question.CodeSnippet,
+            Answers = Question.Answers.Select(a => new Answer
+            {
+                Id = a.Id,
+                QuestionId = a.QuestionId,
+                Text = a.Text,
+                IsCorrect = a.IsCorrect
+            }).ToList()
+        };
+        if (copiedQuestion.CodeSnippet != null)
+        {
+            showCodeSnippet = true;
+        }
+        if(copiedQuestion.ImagePath != null)
+        {
+            ImagePath = copiedQuestion.ImagePath;
+        }
+    }
+
+    private Func<string, string> textValidationRulesForQuestion = value => value.Length > 1000 || string.IsNullOrWhiteSpace(value) ? "Invalid" : null;
+
+    private Func<string, string> textValidationRulesForAnswers = value => value.Length > 250 || string.IsNullOrWhiteSpace(value) ? "Invalid" : null;
+
+    async Task Submit()
+    {
+        bool hasValidationError = false;
+        foreach (var answer in copiedQuestion.Answers)
+        {
+            string validationMessage = textValidationRulesForAnswers(answer.Text);
+            if (validationMessage != null)
+            {
+                hasValidationError = true;
+                break;
+            }
+        }
+
+        if (hasValidationError || textValidationRulesForQuestion(copiedQuestion.Text) != null || copiedQuestion.Answers.All(answer => !answer.IsCorrect ?? true))
+        {
+            Snackbar.Add("Validation failed. Please check the form.", Severity.Error);
+            return;
+        } else
+        {
+            Question = copiedQuestion;
+            byte[]? bufferedImage = null;
+            if (NewImage != null)
+            {
+                bufferedImage = new byte[NewImage.Size];
+                await NewImage.OpenReadStream(maxAllowedSize: 10240000).ReadAsync(bufferedImage);
+            }
+            var questionAndImage = new QuestionAndImage(Question, bufferedImage);
+            ModalDialog.Close(DialogResult.Ok(questionAndImage));
+        }
+    }
+
+    void Cancel()
+    {
+        ModalDialog.Cancel();
+    }
+
+    void Delete(Answer answer)
+    {
+        @*TODO: IMPLEMENT BETTER WAY*@
+        copiedQuestion.Answers = copiedQuestion.Answers.Where(a => a != answer).ToList();
+    }
+
+    private void AddAnswer()
+    {
+        var newAnswer = new Answer
+        {
+            Text = "Default Answer",
+            IsCorrect = false
+        };
+        copiedQuestion.Answers = copiedQuestion.Answers.Append(newAnswer).ToList();
+    }
+
+    private async Task OnInputFileChangedAsync(InputFileChangeEventArgs e)
+    {
+        NewImage = e.File;
+        var buffers = new byte[NewImage.Size];
+        await NewImage.OpenReadStream(maxAllowedSize: 10240000).ReadAsync(buffers);
+        ImagePath = $"data:{NewImage.ContentType};base64,{Convert.ToBase64String(buffers)}";
+    }
+}

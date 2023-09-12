@@ -1,0 +1,39 @@
+﻿@page "/admin-panel/test-results"
+@using LX.TestSpace.Client.HttpRepository.Interfaces;
+@using LX.TestSpace.Client.Components.TestsResult;
+@using LX.TestSpace.Client.Components.TestsResult.Models
+@inject ITestResultsHttpClient TestResultsHttp
+@attribute [Authorize(Roles = "Admin")]
+
+
+<div class="container">
+    <div class="row">
+        <div class="d-flex">
+            <MudSelect T="ResultGroupBy" @bind-Value="GroupBySelection" Label="Group results by">
+                <MudSelectItem Value="ResultGroupBy.None"/>
+                <MudSelectItem Value="ResultGroupBy.Test"/>
+                <MudSelectItem Value="ResultGroupBy.User"/>
+            </MudSelect>
+        </div>
+    </div>
+    <div class="row">
+        @switch (GroupBySelection)
+        {
+            case ResultGroupBy.None:
+                <ResultsViewPaged/>
+                break;
+            case ResultGroupBy.User:
+                <ResultsViewByUser/>
+                break;
+            case ResultGroupBy.Test:
+                <ResultsViewByTest/>
+                break;
+        }
+    </div>
+</div>
+
+@code {
+    private ResultGroupBy GroupBySelection { get; set; } = ResultGroupBy.None;
+
+    private TableGroupDefinition<TestResult> _groupDefinition;
+}

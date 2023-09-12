@@ -1,0 +1,106 @@
+﻿@page "/user/{id}"
+@using LX.TestSpace.Client.Components;
+@using LX.TestSpace.Client.HttpRepository;
+@using LX.TestSpace.Client.HttpRepository.Interfaces;
+@inject ITestResultsHttpClient testResultHttpClient;
+@inject NavigationManager navManager;
+@inject IClipboard Clipboard;
+@inject ISnackbar Snackbar;
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@if (TestResults == null)
+{
+    <MudSkeleton />
+    <MudSkeleton Animation="Animation.False" />
+    <MudSkeleton Animation="Animation.Wave" />
+}
+else
+{
+    <div class="container">
+        <div class="text-center">
+            <MudPaper Elevation="1" Class="mt-4 mb-4">
+                <MudText Typo="Typo.h6">@User.Name @User.Surname</MudText>
+            </MudPaper>
+
+        </div>
+        <MudTable Items="@TestResults.Data" RowsPerPage="@ItemsRepPage">
+            <HeaderContent>
+                <MudTh>Date</MudTh>
+                <MudTh>Test name</MudTh>
+                <MudTh>Elapsed time</MudTh>
+                <MudTh>Result</MudTh>
+                <AuthorizeView Context="authorizeContext" Roles="Admin">
+                    <Authorized>
+                        <MudTh></MudTh>
+                    </Authorized>
+                </AuthorizeView>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.FinishedAt</MudTd>
+                <MudTd>@context.TestSnapshot.Name</MudTd>
+                <MudTd>@context.TextExecutionTime()</MudTd>
+                <MudTd>@context.TestScore %</MudTd>
+                <AuthorizeView Context="authorizeContext" Roles="Admin">
+                    <Authorized>
+                        <MudTd>
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => ShowDetails(context))">Shows details</MudButton>
+                        </MudTd>
+                    </Authorized>
+                </AuthorizeView>
+                <MudTd>
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => ShareResult(context))">Share result</MudButton>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudPagination SelectedChanged="PageChanged" SelectedPage="@SelectedPage" TotalCount="@TotalCount" PageSize="@ItemsRepPage" Count="TotalCount" />
+            </PagerContent>
+        </MudTable>
+    </div>
+}
+
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+    public PaginationModel<TestResult> TestResults { get; set; }
+    public User User { get; set; } = new();
+
+    public int ItemsRepPage { get; set; } = 5;
+    public int SelectedPage { get; set; } = 0;
+    public int TotalCount { get; set; }
+
+
+    [Inject]
+    public IUserHttpClient UserHttpClient { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        User = await UserHttpClient.GetById(Id);
+        TestResults = await UserHttpClient.GetTestResultByUserNamePerPage(SelectedPage, ItemsRepPage, User.Email);
+        TotalCount = TestResults.TotalPageCount; 
+    }
+
+    private async Task PageChanged(int page)
+    {
+        SelectedPage = page - 1;
+        TestResults = await UserHttpClient.GetTestResultByUserNamePerPage(SelectedPage, ItemsRepPage, User.Email);
+    }
+
+    private void ShowDetails(TestResult testResult)
+    {
+        navManager.NavigateTo($"/detailed-test-result/{testResult.Id}");
+    }
+
+    private async void ShareResult(TestResult testResult)
+    {
+        var test = await testResultHttpClient.GetShareUrl(testResult);
+
+        string url = navManager.BaseUri + $"shared/{test}";
+
+        await Clipboard.SetTextAsync(url);
+
+        Snackbar.Add($"Copied URL: {url}");
+    }
+
+}

@@ -1,0 +1,35 @@
+﻿@using LX.TestSpace.Client.Entities;
+<div class="results container text-center">
+	<div class="text" style="width: 300px; display: inline-block">
+		<MudText Align="Align.Left"><b>Test: </b>@TestResult.TestSnapshot.Name</MudText>
+		<MudText Align="Align.Left" Style="overflow-wrap: break-word; max-width: 300px"><b>Description: </b>@TestResult.TestSnapshot.Description</MudText>
+		<MudText Align="Align.Left"><b>Duration: </b>@duration</MudText>
+		<MudText Align="Align.Left" Typo="Typo.h6"><b>@TestResult.User.Name @TestResult.User.Surname</b></MudText>
+		<MudText Align="Align.Left"><b>Started at: </b>@TestResult.StartedAt</MudText>
+		<MudText Align="Align.Left"><b>Finished at: </b>@TestResult.FinishedAt</MudText>
+		<MudText Align="Align.Left"><b>Time spent: </b>@spendedTime.ToString(@"hh\:mm\:ss")</MudText>
+	</div>
+	<MudChart ChartType="ChartType.Donut" Width="200px" Height="200px" InputData="@data" InputLabels="@labels" Style="margin-left: auto; width: 200px; display: inline-block">
+		<CustomGraphics>
+			<text class="donut-inner-text" x="47%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="black" font-family="Helvetica" font-size="5">@TestResult.TestScore.ToString("F2") %</text>
+		</CustomGraphics>
+	</MudChart>
+</div>
+
+@code {
+	[Parameter]
+	public TestResult TestResult { get; set; }
+
+	private double[] data;
+	private string[] labels;
+	private TimeSpan spendedTime;
+	private string duration;
+
+	protected override void OnParametersSet()
+	{
+		data = new double[] { TestResult.TestScore, (100 - TestResult.TestScore) };
+		labels = new string[] { "Correct", "Incorrect" };
+		spendedTime = TestResult.FinishedAt.Subtract(TestResult.StartedAt);
+		duration = TestResult.TestSnapshot.Duration.ToString(@"hh\:mm\:ss");
+	}
+}

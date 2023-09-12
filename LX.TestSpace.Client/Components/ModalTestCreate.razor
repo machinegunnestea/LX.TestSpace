@@ -1,0 +1,43 @@
+﻿@namespace LX.TestSpace.Client.Components
+@using LX.TestSpace.Client.Entities;
+@inject ISnackbar Snackbar
+<MudDialog>
+	<DialogContent>
+		<MudTextField T="string" @bind-Value="@Test.Name" Counter="500" Immediate="true" Validation="@textValidationRulesForName" Label="Name" Variant="Variant.Text" />
+		<MudTextField T="string" @bind-Value="@Test.Description" Counter="1000" Immediate="true" Validation="@textValidationRulesForDescription" Label="Description" Variant="Variant.Text" />
+		<MudTextField T="TimeSpan" @bind-Value="@Test.Duration" Format="hh\:mm\:ss" Immediate="true" Label="Duration (hh\mm\ss)" Variant="Variant.Text" />
+	</DialogContent>
+	<DialogActions>
+		<MudButton OnClick="Cancel">Cancel</MudButton>
+		<MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+	</DialogActions>
+</MudDialog>
+
+@code {
+	[CascadingParameter]
+	MudDialogInstance ModalDialog { get; set; }
+
+	[Parameter]
+	public Test Test { get; set; }
+
+	private Func<string, string> textValidationRulesForName = value => value.Length > 500 || string.IsNullOrWhiteSpace(value) ? "Invalid" : null;
+
+	private Func<string, string> textValidationRulesForDescription = value => value.Length > 1000 || string.IsNullOrWhiteSpace(value) ? "Invalid" : null;
+
+	void Cancel()
+	{
+		ModalDialog.Cancel();
+	}
+
+	void Submit()
+	{
+		if (textValidationRulesForName(Test.Name) != null || textValidationRulesForDescription(Test.Description) != null)
+		{
+			Snackbar.Add("Validation failed. Please check the form.", Severity.Error);
+			return;
+		} else
+		{
+			ModalDialog.Close(DialogResult.Ok(Test));
+		}
+	}
+}

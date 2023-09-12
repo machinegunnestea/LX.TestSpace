@@ -1,0 +1,74 @@
+﻿@namespace LX.TestSpace.Client.Components
+@using LX.TestSpace.Client.Entities;
+@using LX.TestSpace.Client.HttpRepository;
+@using Microsoft.Extensions.Http;
+@using LX.TestSpace.Client.HttpRepository.Interfaces;
+@inject ITestsHttpClient TestHttpClient;
+
+<MudCard Elevation="8" Style="width: 300px">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">@Test.Name</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            @if (IsAdmin)
+            {
+                <MudIconButton Icon="@Icons.Material.Outlined.EditNote"
+                               Style="width: 40px; height: 40px"
+                               Color="Color.Default"
+                               Href=@($"/test-edit/{Test.Id}") />
+                <MudIconButton Icon="@Icons.Material.Outlined.DeleteForever"
+                               Style="width: 40px; height: 40px"
+                               Color="Color.Default"
+                               OnClick="TestDelete" />
+            }
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudPaper Style="height:auto;" Class="d-flex align-content-space-between flex-wrap flex-grow-1" Elevation="0">
+            <MudText Typo="Typo.caption" style="font-size: 15px;">@GetDescription()</MudText>
+            @if (Test.Description.Length > maxDescriptionLength)
+            {
+                <MudIconButton Icon="@(showFullDescription ? Icons.Material.Outlined.ExpandLess : Icons.Material.Outlined.ExpandMore)"
+                               Style="width: 40px; height: 40px"
+                               Class="justify-content-end"
+                               Color="Color.Default"
+                               OnClick="ToggleDescription" />
+
+            }
+        </MudPaper>
+        <MudText Typo="Typo.h6" Class="justify-end">@Test.Duration</MudText>
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Variant="Variant.Filled" Class="justify-content-center mb-3" Color="Color.Success" FullWidth="true" Href=@($"/test-execution/{Test.Id}")> Start test</MudButton>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    [Parameter]
+    public Test Test { get; set; }
+
+    [Parameter]
+    public bool IsAdmin { get; set; }
+
+    [Parameter]
+    public EventCallback TestDelete { get; set; }
+    private int maxDescriptionLength = 200;
+    private bool showFullDescription;
+
+    private void ToggleDescription()
+    {
+        showFullDescription = !showFullDescription;
+    }
+
+    private string GetDescription()
+    {
+        if (Test.Description.Length > maxDescriptionLength)
+        {
+            return showFullDescription ? Test.Description : Test.Description.Substring(0, maxDescriptionLength) + "...";
+        } else
+        {
+            return Test.Description;
+        }
+    }
+}

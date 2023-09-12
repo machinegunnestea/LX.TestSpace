@@ -1,0 +1,47 @@
+﻿@using LX.TestSpace.Client.HttpRepository.Interfaces
+@using System.Globalization
+@inject ITestResultsHttpClient TestResultsHttpClient
+@inject NavigationManager NavigationManager
+@inject IClipboard Clipboard
+@inject ISnackbar Snackbar
+
+
+<MudTable T="TestResult" ServerData="ServerDataHandler" Dense="true">
+    <HeaderContent>
+        <MudTh>Test Name</MudTh>
+        <MudTh>Test Date</MudTh>
+        <MudTh>Test Result</MudTh>
+        <MudTh></MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Test Name">@context.TestSnapshot.Name</MudTd>
+        <MudTd DataLabel="Test Date">@context.FinishedAt.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)</MudTd>
+        <MudTd DataLabel="Score">@context.TestScore.ToString("F2")%</MudTd>
+        <MudTd>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/detailed-test-result/{context.Id}")">Show details</MudButton>
+        </MudTd>
+        <MudTd>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => OnShareResultClick(context)">Share result</MudButton>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No matching records found</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager/>
+    </PagerContent>
+</MudTable>
+
+@code {
+    [Parameter]
+    public Func<TableState, Task<TableData<TestResult>>> ServerDataHandler { get; set; } = default!;
+
+    private async Task OnShareResultClick(TestResult result)
+    {
+        var encryptedIdentifier = await TestResultsHttpClient.GetShareUrl(result);
+        var url = NavigationManager.BaseUri + $"shared/{encryptedIdentifier}";
+        await Clipboard.SetTextAsync(url);
+        Snackbar.Add($"Copied URL: {url}", Severity.Info);
+    }
+}

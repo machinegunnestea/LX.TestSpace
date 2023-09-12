@@ -1,0 +1,28 @@
+﻿@namespace LX.TestSpace.Client.Components
+@using LX.TestSpace.Client.Entities;
+@using LX.TestSpace.Client.HttpRepository;
+@using Microsoft.Extensions.Http;
+@using LX.TestSpace.Client.HttpRepository.Interfaces;
+@inject ITestsHttpClient TestHttpClient;
+
+<MudCard Elevation="8" Style="width: 300px">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudSkeleton Animation="Animation.Wave" />
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudPaper Style="height: 200px;" Class="d-flex align-content-space-between flex-wrap flex-grow-1" Elevation="0">
+            <MudSkeleton Width="80%" />
+            <MudSkeleton Width="100%" />
+        </MudPaper>
+        <MudSkeleton Animation="Animation.Wave" />
+    </MudCardContent>
+    <MudCardActions>
+        <MudSkeleton Width="105px" Height="40px" Class="ml-3" />
+    </MudCardActions>
+</MudCard>
+
+@code {
+
+}

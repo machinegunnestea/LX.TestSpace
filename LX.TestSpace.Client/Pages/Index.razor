@@ -1,0 +1,55 @@
+﻿@page "/"
+@using LX.TestSpace.Client.Components;
+@using LX.TestSpace.Client.HttpRepository.Interfaces;
+
+<input type="text" @bind-value="@searchTerm" @oninput="HandleInput" placeholder="Search" class="form-control rounded-3 w-100" style="border-color: #ced4da;" />
+
+@if (Tests == null)
+{
+    <MudContainer Class="d-flex justify-center">
+        <MudGrid Class="my-3 container" Spacing="4">
+            @for (int i = 0; i < 3; i++)
+            {
+                <MudItem xs="12" md="4">
+                    <TestItemSkeleton />
+                </MudItem>
+            }
+        </MudGrid>
+    </MudContainer>
+}
+else
+{
+    <AuthorizeView>
+        <Authorized>
+            <MudContainer Class="d-flex flex-wrap">
+                @foreach (var item in Tests)
+                {
+                    if (item.IsPublished)
+                    {
+                        <div class="m-3">
+                            <TestItem Test="@item" IsAdmin="false" />
+                        </div>
+                    }
+                }
+            </MudContainer>
+        </Authorized>
+    </AuthorizeView>
+}
+
+@code {
+    private List<Test> Tests { get; set; }
+    private string searchTerm = string.Empty;
+
+    [Inject]
+    public ITestsHttpClient TestHttpClient { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Tests = (await TestHttpClient.SearchTestByTitle(searchTerm)).ToList();
+    }
+    private async Task HandleInput(ChangeEventArgs args)
+    {
+        searchTerm = args.Value.ToString();
+        Tests = (await TestHttpClient.SearchTestByTitle(searchTerm)).ToList();
+    }
+}

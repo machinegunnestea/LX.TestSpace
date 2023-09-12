@@ -1,0 +1,18 @@
+﻿@page "/admin-panel"
+@attribute [Authorize(Roles = "Admin")]
+
+<MudContainer>
+    <div style="display:flex; justify-content:center; align-items:center; ">
+        <MudText Typo="Typo.h4" Class="text-center">Admin Panel</MudText>
+    </div>
+</MudContainer>
+
+<MudButtonGroup Color="Color.Primary" Variant="Variant.Filled" VerticalAlign="false" Style="display: flex; justify-content: center;">
+    <MudButton Href="/admin-panel/users" Size="Size.Large" Class="m-2">User Management</MudButton>
+    <MudButton Href="/admin-panel/tests" Size="Size.Large" Class="m-2">Test Management</MudButton>
+    <MudButton Href="/admin-panel/test-results" Size="Size.Large" Class="m-2">Tests result</MudButton>
+</MudButtonGroup>
+
+@code {
+
+}

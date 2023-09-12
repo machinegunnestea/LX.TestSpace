@@ -1,0 +1,68 @@
+﻿@using LX.TestSpace.Client.HttpRepository.Interfaces
+@using System.Globalization
+@using LX.TestSpace.Client.Components.TestsResult.Models
+@inject ITestResultsHttpClient TestResultsHttpClient
+@inject IUserHttpClient UsersHttpClient
+
+<div class="my-3 col-12">
+    <MudTable T="UserPersonalDataViewModel" ServerData="LoadUsers">
+        <HeaderContent>
+            <MudTh>Email</MudTh>
+            <MudTh>First name</MudTh>
+            <MudTh>Last name</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="First name">@context.Name</MudTd>
+            <MudTd DataLabel="Last name">@context.Surname</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => context.IsExpanded = !context.IsExpanded">Show results</MudButton>
+            </MudTd>
+        </RowTemplate>
+        <ChildRowContent>
+            @if (context.IsExpanded)
+            {
+                <MudTr>
+                    <td colspan="4">
+                        <MudCard>
+                            <MudCardContent Class="pa-0">
+                                <BasePagebleTestResultsTable ServerDataHandler="tableData => ServerData(tableData, context.Id)" />
+
+                            </MudCardContent>
+                        </MudCard>
+                    </td>
+                </MudTr>
+            }
+        </ChildRowContent>
+        <NoRecordsContent>
+            <MudText>No matching records found</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager/>
+        </PagerContent>
+    </MudTable>
+</div>
+
+@code {
+
+    private async Task<TableData<UserPersonalDataViewModel>> LoadUsers(TableState arg)
+    {
+        var response = await UsersHttpClient.GetAllPersonalData(arg.Page, arg.PageSize);
+        return new TableData<UserPersonalDataViewModel>
+        {
+            Items = response.Data.Select(e => new UserPersonalDataViewModel(e)).ToArray(),
+            TotalItems = response.TotalPageCount
+        };
+    }
+
+    private async Task<TableData<TestResult>> ServerData(TableState arg, string userId)
+    {
+        var response = await TestResultsHttpClient.FilterByUserId(arg.Page, arg.PageSize, userId);
+        return new TableData<TestResult>
+        {
+            Items = response.Data,
+            TotalItems = response.TotalPageCount
+        };
+    }
+}

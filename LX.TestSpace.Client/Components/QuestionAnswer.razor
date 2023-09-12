@@ -1,0 +1,70 @@
+﻿@using PSC.Blazor.Components.CodeSnippet
+<MudPaper Elevation="3">
+    <MudContainer>
+        <MudText Class="py-3" Typo="Typo.h5">@question.Text</MudText>
+        <MudDivider />
+        <EditForm Model="@question">
+            @if (!string.IsNullOrEmpty(question.ImagePath))
+            {
+                <div class="ma-6 d-flex justify-center">
+                    <MudImage Src="@question.ImagePath" Alt="Picture went missing, we'll try to catch it" Style="height:auto" Width="250" Elevation="25" />
+                </div>
+                <MudDivider />
+            }
+            @if (!string.IsNullOrEmpty(question.CodeSnippet))
+            {
+                <div class="ma-6 d-flex justify-center">
+                    <CodeSnippet Language="Language.csharp" Style="Style.VisualStudio">
+                        @question.CodeSnippet
+                        </CodeSnippet>
+                </div>
+            }
+            @if (question.IsMultipleAnswers)
+            {
+                @foreach (var answer in question.Answers)
+                {
+                    <MudCheckBox @key="@answer.Id" Label="@answer.Text" Color="Color.Secondary" Class="text-label" CheckedChanged="(bool e) => OnCheckedChanged(answer, e)"></MudCheckBox>
+                    <MudDivider />
+                }
+
+            }
+            else
+            {
+                <MudRadioGroup T="Answer" SelectedOptionChanged="OnSelectedOptionChanged">
+                    @foreach (var answer in question.Answers)
+                    {
+                        <div>
+                            <MudRadio style="width: 100%" Option="@answer" Color="Color.Tertiary" Class="text-label">@answer.Text</MudRadio>
+                        </div>
+                        
+                        <MudDivider />
+                    }
+                </MudRadioGroup>
+            }
+        </EditForm>
+    </MudContainer>
+</MudPaper>
+
+
+
+
+@code {
+    [Parameter]
+    public Question question { get; set; }
+
+    [Parameter]
+    public EventCallback<(int, List<Answer>)> OnSelectionChanged { get; set; }
+
+    private async Task OnSelectedOptionChanged(Answer selectedOption)
+    {
+        List<Answer> selectedAnswers = new List<Answer> { selectedOption };
+        await OnSelectionChanged.InvokeAsync((question.Id, selectedAnswers));
+    }
+
+    private async Task OnCheckedChanged(Answer answer, bool e)
+    {
+        answer.IsSelected = e;
+        List<Answer> selectedAnswers = question.Answers.Where(answer => answer.IsSelected).ToList();
+        await OnSelectionChanged.InvokeAsync((question.Id, selectedAnswers));
+    }
+}

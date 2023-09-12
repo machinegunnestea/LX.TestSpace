@@ -1,0 +1,19 @@
+﻿@using LX.TestSpace.Client.HttpRepository.Interfaces
+@using System.Globalization
+@inject ITestResultsHttpClient TestResultsHttpClient
+
+<div class="my-3 col-12">
+    <BasePagebleTestResultsTable ServerDataHandler="ServerData"/>
+</div>
+
+@code {
+    private async Task<TableData<TestResult>> ServerData(TableState arg)
+    {
+        var response = await TestResultsHttpClient.GetAll(arg.Page, arg.PageSize);
+        return new TableData<TestResult>
+        {
+            Items = response.Data,
+            TotalItems = response.TotalPageCount
+        };
+    }
+}

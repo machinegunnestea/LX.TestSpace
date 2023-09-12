@@ -1,0 +1,139 @@
+﻿@page "/admin-panel/users"
+@using LX.TestSpace.Client.HttpRepository.Interfaces;
+@attribute [Authorize(Roles = "Admin")]
+@inject ISnackbar Snackbar;
+
+<MudTable Items="@Users" Filter="new Func<User,bool>(FilterFunc1)">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Users</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchStringQuery" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>First name</MudTh>
+        <MudTh>Last name</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh></MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Name</MudTd>
+        <MudTd>@context.Surname</MudTd>
+        <MudTd>@context.Email</MudTd>
+        <MudTd>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => OpenDialog(context)">Manage</MudButton>
+        </MudTd>
+        <MudTd>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" Href=@($"/user/{context.Id}")>Test Results</MudButton>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+<MudDialog Title="Edit User" @bind-IsVisible="visible" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-3" /> Edit user
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="selectedUser.Name" Label="First name" />
+        <MudTextField @bind-Value="selectedUser.Surname" Label="Last name" />
+        <MudTextField @bind-Value="selectedUser.Email" Label="Email" />
+        
+        <MudCheckBox @bind-Checked="IsAdmin" Label="Admin" />
+        <MudCheckBox @bind-Checked="IsUser" Label="User" />
+
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveChanges" Class="px-10">Save</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CancelDialog" Class="px-10">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private string searchStringQuery = "";
+    private User selectedUser;
+    private bool visible;
+    private bool IsAdmin;
+    private bool IsUser;
+
+    private DialogOptions dialogOptions = new() { FullWidth = true };
+
+    private List<User> Users { get; set; } = new();
+
+    [Inject]
+    public IUserHttpClient UserHttpClient { get; set; }
+
+    private void OpenDialog(User user)
+    {
+        selectedUser = user;
+        IsAdmin = selectedUser.UserRoles.Contains("Admin");
+        IsUser = selectedUser.UserRoles.Contains("User");
+        visible = true;
+    }
+
+    private void CancelDialog() => visible = false;
+
+    private async Task SaveChanges()
+    {
+        var userRoles = new List<string>();
+
+        if (IsAdmin && !userRoles.Contains("Admin"))
+        {
+            userRoles.Add("Admin");
+        }
+        else if (!IsAdmin && userRoles.Contains("Admin"))
+        {
+            userRoles.Remove("Admin");
+        }
+
+        if (IsUser && !userRoles.Contains("User"))
+        {
+            userRoles.Add("User");
+        }
+        else if (!IsUser && userRoles.Contains("User"))
+        {
+            userRoles.Remove("User");
+        }
+        selectedUser.UserRoles = userRoles;
+        try
+        {
+            Snackbar.Add("Saving", Severity.Info);
+            await UserHttpClient.Update(selectedUser);
+            visible = false;
+            Snackbar.Add("Saved", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Error", Severity.Error);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Users = await UserHttpClient.GetAll();
+    }
+
+    private bool FilterFunc1(User user) => FilterFunc(user, searchStringQuery);
+
+    private bool FilterFunc(User user, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        string[] nameParts = searchString.Split(' ');
+        if (nameParts.Length == 2)
+        {
+            if (user.Name.Contains(nameParts[0], StringComparison.OrdinalIgnoreCase) &&
+                user.Surname.Contains(nameParts[1], StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        else
+        {
+            if (user.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                user.Surname.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+}

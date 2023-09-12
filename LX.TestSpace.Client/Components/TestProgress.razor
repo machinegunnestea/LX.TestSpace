@@ -1,0 +1,83 @@
+﻿@using System.Timers;
+@using Microsoft.AspNetCore.Components;
+@implements IDisposable;
+<div>
+    <MudText Class="ma-0 fs-5" Align="Align.Center">
+        Time remaining: @Time
+    </MudText>
+    <MudProgressLinear Color="Color.Success" Size="Size.Large" Max="@QuestionsCount" Value="@CurrentQuestion" Class="my-7">
+        <MudText Typo="Typo.subtitle2" Color="Color.Inherit">
+            <b>@CurrentQuestion/@QuestionsCount</b>
+        </MudText>
+    </MudProgressLinear>
+</div>
+
+@code {
+    [Parameter]
+    public int CurrentQuestion { get; set; }
+
+    [Parameter]
+    public int QuestionsCount { get; set; }
+
+    [Parameter]
+    public TimeSpan TestDuration { get; set; }
+
+    [Parameter]
+    public EventCallback TimerOut { get; set; }
+
+    private Timer _timer = null!;
+    private int _secondsToRun = 0;
+
+    private string Time { get; set; } = "00:00:00";
+
+    public void StartTimer(TimeSpan time)
+    {
+        _secondsToRun = (int)time.TotalSeconds;
+
+        if (_secondsToRun > 0)
+        {
+            Time = TimeSpan.FromSeconds(_secondsToRun).ToString(@"hh\:mm\:ss");
+            StateHasChanged();
+            _timer.Start();
+        }
+    }
+
+    public void Stop()
+    {
+        _timer.Stop();
+        Dispose();
+    }
+
+    protected override void OnInitialized()
+    {
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += OnTimedEvent;
+        _timer.AutoReset = true;
+        this.StartTimer(TestDuration);
+    }
+
+    private void OnTimedEvent(object? sender, ElapsedEventArgs e)
+    {
+        _secondsToRun--;
+
+        Time = TimeSpan.FromSeconds(_secondsToRun).ToString(@"hh\:mm\:ss");
+        StateHasChanged();
+
+        if (_secondsToRun <= 0)
+        {
+            Stop();
+            TimerOut.InvokeAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_timer != null)
+        {
+            _timer.Stop();
+            _timer.Dispose();
+            
+        }
+        GC.SuppressFinalize(this);
+    }
+}

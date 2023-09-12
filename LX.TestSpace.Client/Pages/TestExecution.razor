@@ -1,0 +1,160 @@
+@page "/test-execution/{id}"
+@using LX.TestSpace.Client.Components
+@using LX.TestSpace.Client.HttpRepository.Interfaces
+@inject ITestsHttpClient TestsHttp
+@inject ITestResultsHttpClient TestResultsHttp
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IJSRuntime jsRuntime
+
+<MudContainer>
+    @if (currentQuestion == null || testResult == null)
+    {
+        <MudSkeleton />
+        <MudSkeleton Animation="Animation.False" />
+        <MudSkeleton Animation="Animation.Wave" />
+    }
+    else
+    {
+        <MudContainer MaxWidth="MaxWidth.Large">
+            <TestProgress QuestionsCount="@count" CurrentQuestion="@current" TestDuration="@duration" TimerOut="TimerOutCallback" />
+            <QuestionAnswer @ref="_questionAnswer" Question="@currentQuestion" OnSelectionChanged="HandleSelectionChanged" />
+        </MudContainer>
+        <MudContainer Class="d-flex justify-content-center mt-5">
+            <MudButton @ref="_submitButton" Color="Color.Primary" Variant="Variant.Filled" OnClick="OnSubmitClick" hidden="@submitButtonHidden" Disabled="@(_submitButton?.Disabled ?? false)">Next</MudButton>
+            <MudButton @ref="_finishButton" Color="Color.Primary" Variant="Variant.Filled" OnClick="OnFinishClick" hidden="@finishButtonHidden" Disabled="@(_finishButton?.Disabled ?? true)">Finish</MudButton>
+        </MudContainer>
+    }
+</MudContainer>
+@if (unsavedChanges)
+{
+    <NavigationLock OnBeforeInternalNavigation="ReallyLeave" ConfirmExternalNavigation />
+}
+
+
+@code {
+    [Parameter]
+    public string? Id { get; set; }
+
+    QuestionAnswer _questionAnswer;
+    MudButton _submitButton = new();
+    MudButton _finishButton = new();
+    bool submitButtonHidden = false;
+    bool finishButtonHidden = true;
+    private bool unsavedChanges;
+
+    Test? test;
+    TestResult? testResult;
+
+    Question? currentQuestion;
+    int current = 0;
+    int count = 0;
+    TimeSpan duration = TimeSpan.FromSeconds(0);
+    List<Answer> selectedAnswers = new List<Answer>();
+
+    async Task ReallyLeave(LocationChangingContext context)
+    {
+        var confirmed = await jsRuntime.InvokeAsync<bool>("window.confirm", "You have incomplete test. Are you sure you want to leave this page?");
+
+        if (!confirmed)
+        {
+            context.PreventNavigation();
+        }
+        else
+        {
+            await TestResultsHttp.Delete(testResult.Id);
+        }
+
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        test = await TestsHttp.Get(Convert.ToInt32(Id));
+        unsavedChanges = true;
+        testResult = await TestResultsHttp.TestStart(Convert.ToInt32(Id));
+
+        current = test.Questions.Count() > 0 ? 1 : 0;
+        count = test.Questions.Count();
+        currentQuestion = test.Questions.Count() > 0 ? test.Questions.First() : currentQuestion;
+        duration = test.Duration;
+
+        if (test.Questions.Count() == 1)
+        {
+            _submitButton.Disabled = true;
+            _finishButton.Disabled = false;
+            submitButtonHidden = true;
+            finishButtonHidden = false;
+        }
+        else if (test.Questions.Count() < 1)
+        {
+            Snackbar.Add("Test has no questions. Please choose another one");
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    private async Task TimerOutCallback()
+    {
+        unsavedChanges = false;
+        Snackbar.Add("The time for passing the test has expired");
+        for(int i = current; i < test.Questions.Count; ++i)
+        {
+            await AttachIntermediateResult();
+            currentQuestion = test.Questions[++current - 1];        
+        }
+        await AttachIntermediateResult();
+
+        await TestResultsHttp.EndTestExecution(testResult.Id);
+        var url = await TestResultsHttp.GetShareUrl(testResult);
+
+        NavigationManager.NavigateTo($"/shared/{url}");
+    }
+    // Handle the returned data here
+    async Task HandleSelectionChanged((int, List<Answer>) data)
+    {
+        int questionId = data.Item1;
+        selectedAnswers = data.Item2;
+    }
+
+    async Task AttachIntermediateResult()
+    {
+        var sendQuestion = currentQuestion;
+        sendQuestion.Answers = currentQuestion.Answers.Select(answer =>
+        {
+            var isSelected = selectedAnswers.Any(selectedAnswer => selectedAnswer.Id == answer.Id);
+            answer.IsSelected = isSelected;
+            return answer;
+        }).ToList();
+        var questionSnap = new QuestionSnapshot(sendQuestion.Text, sendQuestion.ImagePath != null ? sendQuestion.ImagePath:string.Empty, 0.0, sendQuestion.CodeSnippet);
+        questionSnap.UserAnswersSnapshots = sendQuestion.Answers.Select(a => new UserAnswersSnapshot { AnswerId = a.Id, Text = a.Text, IsCorrect = a.IsCorrect, IsSelected = a.IsSelected }).ToList();
+        await TestResultsHttp.SaveIntermediateResult(testResult.Id, currentQuestion.Id, questionSnap);
+    }
+
+    async Task OnSubmitClick()
+    {
+        if (current < test.Questions.Count() && selectedAnswers.Count > 0)
+        {
+            if (current == test.Questions.Count() - 1)
+            {
+                _submitButton.Disabled = true;
+                _finishButton.Disabled = false;
+                submitButtonHidden = true;
+                finishButtonHidden = false;
+            }
+            await AttachIntermediateResult();
+            currentQuestion = test.Questions[++current - 1];
+            selectedAnswers.Clear();
+        }
+    }
+
+    async Task OnFinishClick()
+    {
+        if (selectedAnswers.Count() > 0)
+        {
+            unsavedChanges = false;
+            await AttachIntermediateResult();
+            await TestResultsHttp.EndTestExecution(testResult.Id);
+            var url = await TestResultsHttp.GetShareUrl(testResult);
+            NavigationManager.NavigateTo($"/shared/{url}");
+        }
+    }
+
+}
